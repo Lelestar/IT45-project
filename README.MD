@@ -21,5 +21,5 @@ Ce projet traite le problème du voyageur de commerce (TSP) en utilisant différ
     - `instance_name` : Nom de l'instance TSP à utiliser (sans l'extension `.tsp`).
 
 ## Dépendances
-- GCC/G++ pour la compilation (Linux)
+- G++ pour la compilation (Linux)
 - MinGW pour la compilation (Windows)
