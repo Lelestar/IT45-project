@@ -7,7 +7,7 @@ RESULTS = results/
 
 # Detect platform
 ifeq ($(OS),Windows_NT)
-    RM = del /Q
+    RM = rmdir /S /Q
     MKDIR_BIN = if not exist $(subst /,\,$(BIN)) mkdir $(subst /,\,$(BIN))
     MKDIR_OBJ = if not exist $(subst /,\,$(OBJ)) mkdir $(subst /,\,$(OBJ))
 	MKDIR_RESULTS = if not exist $(subst /,\,$(RESULTS)) mkdir $(subst /,\,$(RESULTS))
@@ -31,4 +31,4 @@ $(BIN)little_algorithm$(EXT): $(SRC)little_algorithm.cpp $(SRC)utils.cpp $(SRC)u
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 clean:
-	$(RM) $(BIN) $(OBJ)
+	$(RM) $(BIN) $(OBJ) $(RESULTS)

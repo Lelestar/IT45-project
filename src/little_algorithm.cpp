@@ -20,7 +20,10 @@ vector<vector<double>> dist;
 vector<int> next_town;
 
 vector<int> best_solution;
-double best_eval = -1.0;
+double best_eval = numeric_limits<double>::max();
+
+// Control the amount of log messages, set to false to disable repetitive messages
+bool verbose_logging = false;
 
 /**
  * @brief Print a matrix
@@ -141,7 +144,9 @@ void build_solution() {
         // Check if the cycle is not Hamiltonian
         for (int i = 0; i < indiceCour; ++i) {
             if (solution[i] == villeCour) {
-                log_message("Cycle is not Hamiltonian");
+                if (verbose_logging) {
+                    log_message("Cycle is not Hamiltonian");
+                }
                 return;
             }
         }
@@ -159,25 +164,14 @@ void build_solution() {
 }
 
 /**
- * @brief Little algorithm
+ * @brief Reduce the matrix
  * 
- * @param d0 distance matrix
- * @param iteration current iteration
- * @param eval_node_parent evaluation of the parent node
+ * @param d distance matrix
+ * @param eval_node_child evaluation of the child node
  */
-void little_algorithm(vector<vector<double>> d0, int iteration, double eval_node_parent) {
+void reduce_matrix(vector<vector<double>>& d, double& eval_node_child) {
     size_t nbr_towns = coordinates.size();
-    if (iteration == nbr_towns) {
-        build_solution();
-        return;
-    }
 
-    // Copy distance matrix
-    vector<vector<double>> d = d0;
-
-    double eval_node_child = eval_node_parent;
-
-    // Row reduction
     for (size_t i = 0; i < nbr_towns; ++i) {
         double min = numeric_limits<double>::infinity();
         for (size_t j = 0; j < nbr_towns; ++j) {
@@ -195,7 +189,6 @@ void little_algorithm(vector<vector<double>> d0, int iteration, double eval_node
         }
     }
 
-    // Column reduction
     for (size_t j = 0; j < nbr_towns; ++j) {
         double min = numeric_limits<double>::infinity();
         for (size_t i = 0; i < nbr_towns; ++i) {
@@ -212,15 +205,19 @@ void little_algorithm(vector<vector<double>> d0, int iteration, double eval_node
             eval_node_child += min;
         }
     }
+}
 
-    // Cutoff : stop if the evaluation is greater than the best evaluation
-    if (best_eval >= 0 && eval_node_child >= best_eval) {
-        return;
-    }
-
-    // Compute the penalties
-    int izero = -1, jzero = -1;
-    double max_penalty = -1.0;
+/**
+ * @brief Compute the penalties
+ * 
+ * @param d distance matrix
+ * @param izero number of the row with a zero
+ * @param jzero number of the column with a zero
+ * @param max_penalty maximum penalty
+ */
+void compute_penalties(const vector<vector<double>>& d, int& izero, int& jzero, double& max_penalty) {
+    size_t nbr_towns = coordinates.size();
+    max_penalty = -1.0;
 
     for (size_t i = 0; i < nbr_towns; ++i) {
         for (size_t j = 0; j < nbr_towns; ++j) {
@@ -245,10 +242,42 @@ void little_algorithm(vector<vector<double>> d0, int iteration, double eval_node
             }
         }
     }
+}
+
+/**
+ * @brief Little algorithm
+ * 
+ * @param d0 distance matrix
+ * @param iteration current iteration
+ * @param eval_node_parent evaluation of the parent node
+ */
+void little_algorithm(vector<vector<double>> d, int iteration, double eval_node_parent) {
+    size_t nbr_towns = coordinates.size();
+    if (iteration == nbr_towns) {
+        build_solution();
+        return;
+    }
+
+    double eval_node_child = eval_node_parent;
+
+    // Reduce the matrix
+    reduce_matrix(d, eval_node_child);
+
+    // Cutoff : stop if the evaluation is greater than the best evaluation
+    if (best_eval >= 0 && eval_node_child >= best_eval) {
+        return;
+    }
+
+    // Compute the penalties
+    int izero = -1, jzero = -1;
+    double max_penalty = -1.0;
+    compute_penalties(d, izero, jzero, max_penalty);
 
     // No zero in the matrix, solution infeasible
     if (izero == -1 || jzero == -1) {
-        log_message("No zero in the matrix, solution infeasible");
+        if (verbose_logging) {
+            log_message("No zero in the matrix, solution infeasible");
+        }
         return;
     }
 
@@ -335,7 +364,6 @@ int main(int argc, char* argv[]) {
     auto start_time = chrono::high_resolution_clock::now();
 
     string tsp_instance = argv[1];
-
     load_tsp_file(tsp_instance);
 
     cout << "Results of the Little algorithm for the TSP instance " << tsp_instance << "\n\n";
