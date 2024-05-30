@@ -6,7 +6,10 @@
 #include <limits>
 #include <sstream>
 #include <chrono>
+#include <thread>
+#include <mutex>
 #include "utils.h"
+#include "thread_pool.h"
 
 using namespace std;
 
@@ -24,6 +27,17 @@ double best_eval = numeric_limits<double>::max();
 
 // Control the amount of log messages, set to false to disable repetitive messages
 bool verbose_logging = false;
+
+// Mutex for thread synchronization
+mutex mtx;
+mutex log_mtx;
+
+// Thread pool with the number of threads equal to the number of cores
+ThreadPool pool(thread::hardware_concurrency());
+
+// Function prototypes
+void explore_branch(vector<vector<double>> d, int iteration, double eval_node_parent, int izero, int jzero, bool left_branch, vector<int> next_town);
+void little_algorithm(vector<vector<double>> d, int iteration, double eval_node_parent, vector<int> next_town);
 
 /**
  * @brief Print a matrix
@@ -131,8 +145,10 @@ double initial_solution() {
 
 /**
  * @brief Build a final solution
+ * 
+ * @param next_town next town vector
  */
-void build_solution() {
+void build_solution(const vector<int>& next_town) {
     size_t nbr_towns = coordinates.size();
     vector<int> solution(nbr_towns);
     int indiceCour = 0;
@@ -145,6 +161,7 @@ void build_solution() {
         for (int i = 0; i < indiceCour; ++i) {
             if (solution[i] == villeCour) {
                 if (verbose_logging) {
+                    lock_guard<mutex> log_lock(log_mtx);
                     log_message("Cycle is not Hamiltonian");
                 }
                 return;
@@ -155,11 +172,19 @@ void build_solution() {
     }
 
     double eval = evaluation_solution(solution);
-    if (best_eval < 0 || eval < best_eval) {
-        best_eval = eval;
-        best_solution = solution;
-        cout << "New best solution: ";
-        print_solution(solution, best_eval);
+
+    // Lock the mutex to update best_eval and best_solution safely
+    {
+        lock_guard<mutex> lock(mtx);
+        if (best_eval < 0 || eval < best_eval) {
+            best_eval = eval;
+            best_solution = solution;
+            if (verbose_logging) {
+                lock_guard<mutex> log_lock(log_mtx);
+                cout << "New best solution: ";
+                print_solution(solution, best_eval);
+            }
+        }
     }
 }
 
@@ -202,7 +227,7 @@ void reduce_matrix(vector<vector<double>>& d, double& eval_node_child) {
                     d[i][j] -= min;
                 }
             }
-            eval_node_child += min;
+            eval_node_child += min; 
         }
     }
 }
@@ -245,16 +270,55 @@ void compute_penalties(const vector<vector<double>>& d, int& izero, int& jzero, 
 }
 
 /**
+ * @brief Explore a branch
+ * 
+ * @param d distance matrix
+ * @param iteration current iteration 
+ * @param eval_node_parent evaluation of the parent node
+ * @param izero number of the row with a zero
+ * @param jzero number of the column with a zero
+ * @param left_branch left branch
+ * @param next_town next town vector
+ */
+void explore_branch(vector<vector<double>> d, int iteration, double eval_node_parent, int izero, int jzero, bool left_branch, vector<int> next_town) {
+    size_t nbr_towns = coordinates.size();
+    vector<vector<double>> d2 = d;
+
+    if (left_branch) {
+        for (size_t i = 0; i < nbr_towns; ++i) {
+            d2[izero][i] = -1;
+            d2[i][jzero] = -1;
+        }
+        d2[jzero][izero] = -1;
+        next_town[izero] = jzero;
+        if (verbose_logging) {
+            lock_guard<mutex> log_lock(log_mtx);
+            cout << "Exploring left branch at iteration " << iteration + 1 << " with next town " << izero << " -> " << jzero << "\n";
+        }
+        little_algorithm(d2, iteration + 1, eval_node_parent, next_town);
+    } else {
+        d2[izero][jzero] = -1;
+        if (verbose_logging) {
+            lock_guard<mutex> log_lock(log_mtx);
+            cout << "Exploring right branch at iteration " << iteration << " blocking path " << izero << " -> " << jzero << "\n";
+        }
+        little_algorithm(d2, iteration, eval_node_parent, next_town);
+    }
+}
+
+
+/**
  * @brief Little algorithm
  * 
  * @param d0 distance matrix
  * @param iteration current iteration
  * @param eval_node_parent evaluation of the parent node
+ * @param next_town next town vector
  */
-void little_algorithm(vector<vector<double>> d, int iteration, double eval_node_parent) {
+void little_algorithm(vector<vector<double>> d, int iteration, double eval_node_parent, vector<int> next_town) {
     size_t nbr_towns = coordinates.size();
     if (iteration == nbr_towns) {
-        build_solution();
+        build_solution(next_town);
         return;
     }
 
@@ -265,6 +329,10 @@ void little_algorithm(vector<vector<double>> d, int iteration, double eval_node_
 
     // Cutoff : stop if the evaluation is greater than the best evaluation
     if (best_eval >= 0 && eval_node_child >= best_eval) {
+        if (verbose_logging) {
+            lock_guard<mutex> log_lock(log_mtx);
+            cout << "Cutoff at iteration " << iteration << " with eval " << eval_node_child << " >= best eval " << best_eval << "\n";
+        }
         return;
     }
 
@@ -276,6 +344,7 @@ void little_algorithm(vector<vector<double>> d, int iteration, double eval_node_
     // No zero in the matrix, solution infeasible
     if (izero == -1 || jzero == -1) {
         if (verbose_logging) {
+            lock_guard<mutex> log_lock(log_mtx);
             log_message("No zero in the matrix, solution infeasible");
         }
         return;
@@ -284,20 +353,13 @@ void little_algorithm(vector<vector<double>> d, int iteration, double eval_node_
     // Branching
     vector<vector<double>> d2 = d;
 
-    // Explore left branch
-    // Block all paths leading from the chosen town and to the chosen town
-    for (size_t i = 0; i < nbr_towns; ++i) {
-        d2[izero][i] = -1;
-        d2[i][jzero] = -1;
-    }
-    d2[jzero][izero] = -1;
-    next_town[izero] = jzero;
-    little_algorithm(d2, iteration + 1, eval_node_child);
-
-    // Explore right branch
-    d2 = d;
-    d2[izero][jzero] = -1;
-    little_algorithm(d2, iteration, eval_node_child);
+    // Launch tasks to explore both branches using the thread pool
+    pool.enqueue([d, iteration, eval_node_child, izero, jzero, next_town] {
+        explore_branch(d, iteration, eval_node_child, izero, jzero, true, next_town);
+    });
+    pool.enqueue([d, iteration, eval_node_child, izero, jzero, next_town] {
+        explore_branch(d, iteration, eval_node_child, izero, jzero, false, next_town);
+    });
 }
 
 /**
@@ -356,7 +418,7 @@ void load_tsp_file(const string& file_path) {
  */
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        cerr << "Usage: " << argv[0] << " <tsp_instance_name>\n";
+        cerr << "Usage: " << argv[0] << " <tsp_instance_name> [verbose]\n";
         return 1;
     }
 
@@ -364,6 +426,12 @@ int main(int argc, char* argv[]) {
     auto start_time = chrono::high_resolution_clock::now();
 
     string tsp_instance = argv[1];
+
+    // Check for verbose logging option
+    if (argc > 2 && strcmp(argv[2], "verbose") == 0) {
+        verbose_logging = true;
+    }
+    
     load_tsp_file(tsp_instance);
 
     cout << "Results of the Little algorithm for the TSP instance " << tsp_instance << "\n\n";
@@ -373,7 +441,10 @@ int main(int argc, char* argv[]) {
     cout << "\n";
 
     double initial_value = initial_solution();
-    little_algorithm(dist, 0, 0.0);
+    little_algorithm(dist, 0, 0.0, next_town);
+
+    // Wait for all threads to finish
+    pool.wait();
 
     // Flush any remaining log messages
     flush_log();

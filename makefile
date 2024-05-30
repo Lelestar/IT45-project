@@ -27,7 +27,7 @@ directories:
 	$(MKDIR_OBJ)
 	$(MKDIR_RESULTS)
 
-$(BIN)little_algorithm$(EXT): $(SRC)little_algorithm.cpp $(SRC)utils.cpp $(SRC)utils.h
+$(BIN)little_algorithm$(EXT): $(SRC)little_algorithm.cpp $(SRC)utils.cpp $(SRC)utils.h $(SRC)thread_pool.cpp $(SRC)thread_pool.h
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 clean:
