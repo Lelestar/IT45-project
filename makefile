@@ -4,6 +4,7 @@ SRC = src/
 OBJ = obj/
 BIN = bin/
 RESULTS = results/
+TABU_SRC = src/tabu_search/
 
 # Detect platform
 ifeq ($(OS),Windows_NT)
@@ -20,7 +21,7 @@ else
     EXT =
 endif
 
-all: directories $(BIN)little_algorithm$(EXT)
+all: directories $(BIN)little_algorithm$(EXT) $(BIN)tabu_search$(EXT)
 
 directories:
 	$(MKDIR_BIN)
@@ -29,6 +30,9 @@ directories:
 
 $(BIN)little_algorithm$(EXT): $(SRC)little_algorithm.cpp $(SRC)utils.cpp $(SRC)utils.h $(SRC)thread_pool.cpp $(SRC)thread_pool.h
 	$(CXX) $(CXXFLAGS) -o $@ $^
+
+$(BIN)tabu_search$(EXT): $(TABU_SRC)main.cpp $(TABU_SRC)tabu_search.cpp $(TABU_SRC)tabu_search.h $(TABU_SRC)solution.cpp $(TABU_SRC)solution.h $(TABU_SRC)random.h
+	$(CXX) $(CXXFLAGS) -o $@ $(TABU_SRC)main.cpp $(TABU_SRC)tabu_search.cpp $(TABU_SRC)solution.cpp
 
 clean:
 	$(RM) $(BIN) $(OBJ) $(RESULTS)
