@@ -38,7 +38,10 @@ class TabuSearch {
         int **distances;                 ///< Distance matrix between cities
         int best_evaluation;             ///< Best evaluation found
         int verbose;                     ///< Verbose output flag
-        int max_duration_seconds;        ///< Maximum duration in seconds                                                 
+        int max_duration_seconds;        ///< Maximum duration in seconds
+        int no_improvement_counter;      ///< Counter for the number of iterations without improvement
+        int max_no_improvement_iterations; ///< Maximum number of iterations without improvement
+        int num_perturbations_denominator; ///< Number of perturbations denominator              
 
         // CONSTRUCTORS
         /**
@@ -112,6 +115,14 @@ class TabuSearch {
          * @return Pointer to the best solution found
          */
         Solution* optimize();
+
+        /**
+         * Perturbs the solution by swapping a few cities.
+         */
+        void perturb_solution();
+
+        void setMaxNoImprovementIterations(int value);
+        void setNumPerturbationsDenominator(int value);
 };
 
 #endif

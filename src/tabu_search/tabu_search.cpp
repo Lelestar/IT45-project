@@ -2,6 +2,7 @@
 
 using namespace std;
 
+
 /**
  * @brief Load the coordinates of cities from a TSP file
  * 
@@ -72,6 +73,9 @@ TabuSearch::TabuSearch(int nbiter, int dt, const string& filename, int verbose, 
     best_evaluation = INT_MAX;
     this->verbose = verbose;
     this->max_duration_seconds = max_duration_seconds;
+    no_improvement_counter = 0;
+    max_no_improvement_iterations = 50;
+    num_perturbations_denominator = 6;
     vector<City> cities;
     solution_size = load_tsp_coordinates(filename, cities); // Load city coordinates
     constructDistance(solution_size, cities); // Construct distance matrix
@@ -238,14 +242,32 @@ void TabuSearch::neighborhood2opt(int &best_i, int &best_j) {
             }
 
             current->reverse_segment(i, j); // Undo 2-opt exchange
-            current->evaluate(distances);
-
-            // Debugging prints
-            cout << "i: " << i << ", j: " << j << ", fitness: " << current->fitness << endl;
-            cout << "Best neighbor: " << best_neighbor << ", Best i: " << best_i << ", Best j: " << best_j << endl;
         }
     }
 }
+
+/**
+ * Perturbs the current solution by swapping a few cities.
+ */
+void TabuSearch::perturb_solution() {
+    int num_perturbations = solution_size / num_perturbations_denominator;
+    for (int i = 0; i < num_perturbations; ++i) {
+        int city1 = rand() % solution_size;
+        int city2 = rand() % solution_size;
+        current->swap(city1, city2);
+    }
+    current->evaluate(distances);
+}
+
+void TabuSearch::setMaxNoImprovementIterations(int value) {
+    max_no_improvement_iterations = value;
+}
+
+void TabuSearch::setNumPerturbationsDenominator(int value) {
+    num_perturbations_denominator = value;
+}
+
+
 
 /**
  * Main procedure of the search
@@ -283,8 +305,10 @@ Solution* TabuSearch::optimize() {
             }
         }
 
-        neighborhood2opt(best_i, best_j); // Get the best non-tabu move
+        neighborhoodSwap(best_i, best_j); // Get the best non-tabu move
         current->swap(best_i, best_j); // Move the current solution using this move
+        //neighborhood2opt(best_i, best_j); // Get the best non-tabu move
+        //current->reverse_segment(best_i, best_j); // Move the current solution using this move
 
         current->order(); // Reorder the solution starting from 0
         current->evaluate(distances); // Evaluate the new current solution
@@ -296,12 +320,14 @@ Solution* TabuSearch::optimize() {
             *best_solution = *current; // Save the current solution as best_solution
             best_solution->evaluate(distances); // Evaluate the best solution
             count_best_updates++; // Increment the counter for best solution updates
+            no_improvement_counter = 0; // Reset the no improvement counter
         } else { // If not in the smallest minimum found but in a local minimum
             // Local minimum detection criteria. Two cases:
             // 1. If the new solution is worse than the old one
             //    and we are performing a descent
             // 2. If the new solution is identical to the old one
             //    and it is the first time this happens
+            no_improvement_counter++;
             if ( ((f_before < f_after) && (descent == true)) || ((f_before == f_after) && (first)) ) {
                 if (verbose) {
                     cout << "We are in a local minimum at iteration "
@@ -320,6 +346,15 @@ Solution* TabuSearch::optimize() {
 
             if ((f_before != f_after) && (!first))
                 first = true;
+
+            // Si le compteur dépasse le seuil, applique une perturbation
+            if (no_improvement_counter >= max_no_improvement_iterations) {
+                if (verbose) {
+                    cout << "Applying perturbation at iteration " << current_iter << endl;
+                }
+                perturb_solution();
+                no_improvement_counter = 0;
+            }
         }
 
         // Update the tabu list
