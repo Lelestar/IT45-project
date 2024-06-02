@@ -5,6 +5,8 @@
 #include <cstring>
 #include <limits>
 #include <sstream>
+#include <atomic>
+#include <chrono>
 #include <chrono>
 #include <thread>
 #include <mutex>
@@ -34,6 +36,11 @@ mutex log_mtx;
 
 // Thread pool with the number of threads equal to the number of cores
 ThreadPool pool(thread::hardware_concurrency());
+
+// Time management
+std::atomic<bool> stop_execution(false);
+std::chrono::time_point<std::chrono::high_resolution_clock> start_time;
+double max_duration = std::numeric_limits<double>::max();
 
 // Function prototypes
 void explore_branch(vector<vector<double>> d, int iteration, double eval_node_parent, int izero, int jzero, bool left_branch, vector<int> next_town);
@@ -281,6 +288,22 @@ void compute_penalties(const vector<vector<double>>& d, int& izero, int& jzero, 
  * @param next_town next town vector
  */
 void explore_branch(vector<vector<double>> d, int iteration, double eval_node_parent, int izero, int jzero, bool left_branch, vector<int> next_town) {
+    // Check for maximum duration
+    auto now = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::seconds>(now - start_time).count();
+    if (duration >= max_duration) {
+        stop_execution = true;
+        {
+            lock_guard<mutex> log_lock(log_mtx);
+            log_message("Maximum duration reached");
+        }
+        return;
+    }
+
+    if (stop_execution) {
+        return;
+    }
+
     size_t nbr_towns = coordinates.size();
     vector<vector<double>> d2 = d;
 
@@ -316,6 +339,22 @@ void explore_branch(vector<vector<double>> d, int iteration, double eval_node_pa
  * @param next_town next town vector
  */
 void little_algorithm(vector<vector<double>> d, int iteration, double eval_node_parent, vector<int> next_town) {
+    // Check for maximum duration
+    auto now = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::seconds>(now - start_time).count();
+    if (duration >= max_duration) {
+        stop_execution = true;
+        {
+            lock_guard<mutex> log_lock(log_mtx);
+            log_message("Maximum duration reached");
+        }
+        return;
+    }
+
+    if (stop_execution) {
+        return;
+    }
+    
     size_t nbr_towns = coordinates.size();
     if (iteration == nbr_towns) {
         build_solution(next_town);
@@ -418,18 +457,24 @@ void load_tsp_file(const string& file_path) {
  */
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        cerr << "Usage: " << argv[0] << " <tsp_instance_name> [verbose]\n";
+        cerr << "Usage: " << argv[0] << " <tsp_instance_name> [verbose] [max_duration_seconds]\n";
+        cerr << "Without using the script, the tsp_instance_name must be the path to the TSP file with the .tsp extension\n";
         return 1;
     }
 
     // Start the timer
-    auto start_time = chrono::high_resolution_clock::now();
+    start_time = chrono::high_resolution_clock::now();
 
     string tsp_instance = argv[1];
 
     // Check for verbose logging option
     if (argc > 2 && strcmp(argv[2], "verbose") == 0) {
         verbose_logging = true;
+    }
+
+    // Check for max duration option
+    if (argc > 3) {
+        max_duration = atof(argv[3]);
     }
     
     load_tsp_file(tsp_instance);

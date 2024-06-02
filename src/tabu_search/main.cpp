@@ -25,24 +25,35 @@ int main(int argc, char **argv) {
     Random::randomize();
 
     // Default values
-    int num_iterations = 10;
-    int tabu_length = 0;
-    int num_cities = 10;
-    char distanceFile[100];
-    strcpy(distanceFile, "data/distances_between_cities_10.txt");
+    int num_iterations = 1500;
+    int tabu_length = 50;
+    char tspFile[100];
+    int verbose = 0;
+    int max_duration_seconds = -1;
+    strcpy(tspFile, "data/berlin52.tsp");
 
     cout << "Synopsis: " << argv[0] << " num_iter tabu_length number_cities distance_file " << endl;
     cout << "   1. num_iter      : number of iterations, default value = " << num_iterations << endl;
     cout << "   2. tabu_length   : tabu list length, default value = " << tabu_length << endl;
-    cout << "   3. number_cities : number of cities in the instance, default value = " << num_cities << endl;
-    cout << "   4. distance_file : distance matrix filename, default value = " << distanceFile << endl;
+    cout << "   3. tsp_file      : TSP file containing the coordinates of cities, default value = " << tspFile << endl;
+    cout << "   4. verbose             : verbose output, default value = " << verbose << endl;
+    cout << "   5. max_duration_seconds: maximum duration in seconds, default value = " << max_duration_seconds << endl;
     cout << endl;
 
-    if (argc == 5) {
+    if (argc >= 4) {
         num_iterations = atoi(argv[1]);
         tabu_length = atoi(argv[2]);
-        num_cities = atoi(argv[3]);
-        strcpy(distanceFile, argv[4]);
+        strcpy(tspFile, argv[3]);
+        if (argc >= 5) {
+            // String comparison to check if the verbose flag is set
+            if (strcmp(argv[4], "verbose") == 0) {
+                verbose = 1;
+            }
+        }
+        if (argc == 6) {
+            max_duration_seconds = atoi(argv[5]);
+            num_iterations = 1000000000; // Set a large number of iterations
+        }
     } else if (argc != 1) {
         cout << "Incorrect arguments" << endl;
         exit(EXIT_FAILURE);
@@ -53,7 +64,7 @@ int main(int argc, char **argv) {
     //   2nd parameter: length of the Tabu list
     //   3rd parameter: number of cities
     //   4th parameter: file containing the distances between cities    
-    TabuSearch algo(num_iterations, tabu_length, num_cities, distanceFile);
+    TabuSearch algo(num_iterations, tabu_length, tspFile, verbose, max_duration_seconds);
 
     // Run the search with the Tabu method
     Solution* best = algo.optimize();

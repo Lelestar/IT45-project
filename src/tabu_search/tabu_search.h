@@ -5,7 +5,21 @@
 #include <cstdio>
 #include <iostream>
 #include <fstream>
+#include <sstream>
+#include <vector>
+#include <cmath>
+#include <chrono>
 #include "solution.h"
+
+using namespace std;
+
+/**
+ * This structure defines a city with its coordinates.
+ */
+struct City {
+    double x;
+    double y;
+};
 
 /**
  * This class defines the parameters for running the Tabu Search
@@ -22,7 +36,9 @@ class TabuSearch {
         int **tabu_list2;                ///< List of tabu solutions
         int **tabu_list;                 ///< List of tabu durations associated with each pair of cities
         int **distances;                 ///< Distance matrix between cities
-        int best_evaluation;             ///< Best evaluation found                                                 
+        int best_evaluation;             ///< Best evaluation found
+        int verbose;                     ///< Verbose output flag
+        int max_duration_seconds;        ///< Maximum duration in seconds                                                 
 
         // CONSTRUCTORS
         /**
@@ -30,10 +46,9 @@ class TabuSearch {
          * 
          * @param nbiter Number of iterations
          * @param dt Tabu duration
-         * @param nv Number of cities
-         * @param filename Name of the file containing distances between cities
+         * @param filename Name of the TSP file
          */
-        TabuSearch(int nbiter, int dt, int nv, char* filename);
+        TabuSearch(int nbiter, int dt, const string& filename, int verbose = 0, int max_duration_seconds = -1);
         
         /**
          * Destructor for TabuSearch.
@@ -79,9 +94,9 @@ class TabuSearch {
          * Constructs the distance matrix.
          * 
          * @param nv Number of cities
-         * @param filename Name of the file containing distances between cities
+         * @param cities Vector of cities
          */
-        void constructDistance(int nv, char* filename);
+        void constructDistance(int nv, const vector<City>& cities);
 
         /**
          * Adds the solution to the tabu list at the specified position.

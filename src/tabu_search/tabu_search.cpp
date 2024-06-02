@@ -3,23 +3,85 @@
 using namespace std;
 
 /**
+ * @brief Load the coordinates of cities from a TSP file
+ * 
+ * @param file_path path to the TSP file
+ * @param cities vector to store the coordinates of cities
+ * @return the dimension (number of cities)
+ */ 
+int load_tsp_coordinates(const string& file_path, vector<City>& cities) {
+    ifstream file(file_path);
+    if (!file) {
+        cerr << "Unable to load the file " << file_path << "\n";
+        exit(1);
+    }
+
+    string line;
+    int dimension = 0;
+
+    // Read the dimension and coordinates
+    while (getline(file, line)) {
+        if (line.find("DIMENSION") != string::npos) {
+            istringstream iss(line);
+            string temp;
+            while (iss >> temp) {
+                if (isdigit(temp[0])) {
+                    dimension = stoi(temp);
+                    break;
+                }
+            }
+        }
+        if (line == "NODE_COORD_SECTION") {
+            break;
+        }
+    }
+
+    cities.resize(dimension);
+
+    int id;
+    double x, y;
+    for (int i = 0; i < dimension; ++i) {
+        file >> id >> x >> y;
+        cities[id - 1] = {x, y}; // Make sure the IDs start from 1
+    }
+
+    file.close();
+    return dimension;
+}
+
+/**
+ * @brief Calculate the Euclidean distance between two cities
+ * 
+ * @param a city a
+ * @param b city b
+ * @return the Euclidean distance between a and b
+ */
+double euclidean_distance(const City& a, const City& b) {
+    return sqrt(pow(a.x - b.x, 2) + pow(a.y - b.y, 2));
+}
+
+
+/**
  * Constructor: Initializes the parameters of Tabu Search and generates the initial solution.
  * Initializes the tabu list.
  */
-TabuSearch::TabuSearch(int nbiter, int dt, int nv, char* filename) {
+TabuSearch::TabuSearch(int nbiter, int dt, const string& filename, int verbose, int max_duration_seconds) {
     num_iterations = nbiter;
     current_iter = 0;
-    tabu_duration = dt;
-    solution_size = nv;
+    tabu_duration = dt; 
     best_evaluation = INT_MAX;
-    constructDistance(solution_size, filename);
-    current = new Solution(nv);
+    this->verbose = verbose;
+    this->max_duration_seconds = max_duration_seconds;
+    vector<City> cities;
+    solution_size = load_tsp_coordinates(filename, cities); // Load city coordinates
+    constructDistance(solution_size, cities); // Construct distance matrix
+    current = new Solution(solution_size);
     current->evaluate(distances);
 
-    tabu_list = new int*[nv];
-    for(int i = 0; i < nv; i++) {
-        tabu_list[i] = new int[nv];
-        for(int j = 0; j < nv; j++)
+    tabu_list = new int*[solution_size];
+    for(int i = 0; i < solution_size; i++) {
+        tabu_list[i] = new int[solution_size];
+        for(int j = 0; j < solution_size; j++)
             tabu_list[i][j] = -1;
     }
 
@@ -63,36 +125,22 @@ bool fileExists(const char* filename) {
 /**
  * Constructs the distance matrix from the file.
  * @param nv Number of cities
- * @param filename File containing distances between cities
+ * @param cities Vector of cities
  */
-void TabuSearch::constructDistance(int nv, char* filename) {
+void TabuSearch::constructDistance(int nv, const vector<City>& cities) {
     distances = new int*[nv];
     for(int i = 0; i < nv; i++)
         distances[i] = new int[nv];
-
-    if (!fileExists(filename)) {
-        cerr << "File [" << filename << "] does not exist." << endl;
-        exit(-1);
-    }
-
-    ifstream file;
-    file.open(filename, ifstream::in);
-    if(!file.is_open()) {
-        cerr << "File [" << filename << "] could not be opened." << endl;
-        exit(-1);
-    }
-
+    
     for (int i = 0; i < nv; i++) {
-        for(int j = i + 1; j < nv; j++) {
-            file >> distances[i][j];
-            distances[j][i] = distances[i][j];
+        for (int j = 0; j < nv; j++) {
+            if (i == j) {
+                distances[i][j] = 0.0;
+            } else {
+                distances[i][j] = euclidean_distance(cities[i], cities[j]);
+            }
         }
     }
-
-    for (int i = 0; i < nv; i++)
-        distances[i][i] = -10;
-
-    file.close();
 }
 
 bool TabuSearch::notTabu(int i, int j, int fitness) {
@@ -191,6 +239,10 @@ void TabuSearch::neighborhood2opt(int &best_i, int &best_j) {
 
             current->reverse_segment(i, j); // Undo 2-opt exchange
             current->evaluate(distances);
+
+            // Debugging prints
+            cout << "i: " << i << ", j: " << j << ", fitness: " << current->fitness << endl;
+            cout << "Best neighbor: " << best_neighbor << ", Best i: " << best_i << ", Best j: " << best_j << endl;
         }
     }
 }
@@ -216,10 +268,23 @@ Solution* TabuSearch::optimize() {
     int count_best_updates = 0;
     int count_local_minima = 0;
 
+    // Timer start for max duration
+    auto start_time = chrono::high_resolution_clock::now();
+
     // While the iteration limit is not reached
     for(current_iter = 0; current_iter < num_iterations; current_iter++) {
-        neighborhoodSwap(best_i, best_j); // Get the best non-tabu move
-        current->reverse_segment(best_i, best_j); // Move the current solution using this move
+        // Check for max duration
+        if (max_duration_seconds > 0) {
+            auto current_time = std::chrono::high_resolution_clock::now();
+            auto elapsed_time = std::chrono::duration_cast<std::chrono::seconds>(current_time - start_time).count();
+            if (elapsed_time > max_duration_seconds) {
+                cout << "Max duration reached. Stopping optimization." << endl;
+                break;
+            }
+        }
+
+        neighborhood2opt(best_i, best_j); // Get the best non-tabu move
+        current->swap(best_i, best_j); // Move the current solution using this move
 
         current->order(); // Reorder the solution starting from 0
         current->evaluate(distances); // Evaluate the new current solution
@@ -238,10 +303,12 @@ Solution* TabuSearch::optimize() {
             // 2. If the new solution is identical to the old one
             //    and it is the first time this happens
             if ( ((f_before < f_after) && (descent == true)) || ((f_before == f_after) && (first)) ) {
-                cout << "We are in a local minimum at iteration "
-                    << current_iter - 1 << " -> min = " << f_before
-                    << " km (smallest local min found = "
-                    << best_evaluation << " km)" << endl;
+                if (verbose) {
+                    cout << "We are in a local minimum at iteration "
+                        << current_iter - 1 << " -> min = " << f_before
+                        << " km (smallest local min found = "
+                        << best_evaluation << " km)" << endl;
+                }
                 first = false;
                 count_local_minima++;
             }
@@ -260,12 +327,16 @@ Solution* TabuSearch::optimize() {
         f_before = f_after;
 
         // Output: index of iteration and the optimal solution so far
-        printf("%d\t%d\t%d\n", current_iter, current->fitness, best_evaluation);
+        if (verbose) {
+            printf("%d\t%d\t%d\n", current_iter, current->fitness, best_evaluation);
+        }
     }
 
     // Display the number of times the best solution was updated and the number of local minima visited
-    cout << "Number of best solution updates: " << count_best_updates << endl;
-    cout << "Number of local minima visited: " << count_local_minima << endl;
+    if (verbose) {
+        cout << "Number of best solution updates: " << count_best_updates << endl;
+        cout << "Number of local minima visited: " << count_local_minima << endl;
+    }
 
     return best_solution;
 }
