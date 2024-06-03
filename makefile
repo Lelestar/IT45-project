@@ -5,6 +5,7 @@ OBJ = obj/
 BIN = bin/
 RESULTS = results/
 TABU_SRC = src/tabu_search/
+GENETIC_SRC = src/genetic_algorithm/
 
 # Detect platform
 ifeq ($(OS),Windows_NT)
@@ -21,7 +22,7 @@ else
     EXT =
 endif
 
-all: directories $(BIN)little_algorithm$(EXT) $(BIN)tabu_search$(EXT)
+all: directories $(BIN)little_algorithm$(EXT) $(BIN)tabu_search$(EXT) $(BIN)genetic_algorithm$(EXT)
 
 directories:
 	$(MKDIR_BIN)
@@ -33,6 +34,9 @@ $(BIN)little_algorithm$(EXT): $(SRC)little_algorithm.cpp $(SRC)utils.cpp $(SRC)u
 
 $(BIN)tabu_search$(EXT): $(TABU_SRC)main.cpp $(TABU_SRC)tabu_search.cpp $(TABU_SRC)tabu_search.h $(TABU_SRC)solution.cpp $(TABU_SRC)solution.h $(TABU_SRC)random.h
 	$(CXX) $(CXXFLAGS) -o $@ $(TABU_SRC)main.cpp $(TABU_SRC)tabu_search.cpp $(TABU_SRC)solution.cpp
+
+$(BIN)genetic_algorithm$(EXT): $(GENETIC_SRC)main.cpp $(GENETIC_SRC)ae.cpp $(GENETIC_SRC)ae.h $(GENETIC_SRC)population.cpp $(GENETIC_SRC)population.h $(GENETIC_SRC)random.h $(GENETIC_SRC)chromosome.cpp $(GENETIC_SRC)chromosome.h
+	$(CXX) $(CXXFLAGS) -o $@ $(GENETIC_SRC)main.cpp $(GENETIC_SRC)ae.cpp $(GENETIC_SRC)population.cpp $(GENETIC_SRC)chromosome.cpp
 
 clean:
 	$(RM) $(BIN) $(OBJ) $(RESULTS)
