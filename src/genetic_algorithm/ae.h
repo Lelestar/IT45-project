@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <vector>
 #include <chrono>
+#include <unordered_map>
+#include <unordered_set>
 #include "population.h"
 #include "chromosome.h"
 
@@ -57,6 +59,9 @@ public:
     // 2LOX crossover operator for two chromosomes
     void crossover2LOX(Chromosome* parent1, Chromosome* parent2,
                        Chromosome* child1, Chromosome* child2);
+    // PMX crossover operator for two chromosomes
+    void crossoverPMX(Chromosome* parent1, Chromosome* parent2,
+                      Chromosome* child1, Chromosome* child2);
 };
 
 # endif

@@ -119,8 +119,10 @@ Chromosome* Ae::optimize()
         // perform crossover with probability "crossover_rate"
         if(Random::random(1000) / 1000.0 < crossover_rate)
         {
-            crossover1X(parent1, parent2, child1, child2);    
-            //crossover2X(parent1, parent2, child1, child2);
+            //crossover1X(parent1, parent2, child1, child2);    
+            crossover2X(parent1, parent2, child1, child2);
+            //crossover2LOX(parent1, parent2, child1, child2);
+            //crossoverPMX(parent1, parent2, child1, child2);
         }
         else
         {
@@ -130,15 +132,17 @@ Chromosome* Ae::optimize()
 
         // perform mutation on one child with probability "mutation_rate"
         if(Random::random(1000) / 1000.0 < mutation_rate)
-            child1->swap_2_consecutive_genes();
+            //child1->swap_2_consecutive_genes();
             //child1->swap_2_random_genes();
-            //child1->invert_sequence_of_genes();
+            //child1->move_1_gene();
+            child1->invert_sequence_of_genes();
 
         // perform mutation on the other child with probability "mutation_rate"
         if(Random::random(1000) / 1000.0 < mutation_rate)
-            child1->swap_2_consecutive_genes();
-            //child1->swap_2_random_genes();
-            //child1->invert_sequence_of_genes();
+            //child2->swap_2_consecutive_genes();
+            //child2->swap_2_random_genes();
+            //child2->move_1_gene();
+            child2->invert_sequence_of_genes();
 
         // evaluate the two newly generated individuals
         child1->evaluate(distances);
@@ -267,18 +271,6 @@ void Ae::crossover2X(Chromosome* parent1, Chromosome* parent2,
         }
     }
 
-    // complete the remaining parts after point2
-    for (int k = point2; k < num_genes; k++)
-    {
-        for (int l = k + 1; l < num_genes; l++)
-        {
-            if (order_parent2[child1->genes[k]] > order_parent2[child1->genes[l]])
-                child1->swap_2_genes(k, l);
-            if (order_parent1[child2->genes[k]] > order_parent1[child2->genes[l]])
-                child2->swap_2_genes(k, l);
-        }
-    }
-
     delete[] order_parent1;
     delete[] order_parent2;
 }
@@ -286,7 +278,120 @@ void Ae::crossover2X(Chromosome* parent1, Chromosome* parent2,
 void Ae::crossover2LOX(Chromosome* parent1, Chromosome* parent2,
                        Chromosome* child1, Chromosome* child2)
 {
-    // This method is empty in the original code and is left as such
+    int num_genes = parent1->size;
+
+    // Step 1: Randomly choose two crossover points
+    int point1 = Random::random(num_genes);
+    int point2 = Random::random(num_genes);
+
+    // Ensure point1 < point2
+    if (point1 > point2) {
+        std::swap(point1, point2);
+    }
+
+    // Step 2: Copy the segment between the crossover points from parent 1 to child 1
+    //                     and from parent 2 to child 2.
+    for (int i = point1; i <= point2; i++) {
+        child1->genes[i] = parent1->genes[i];
+        child2->genes[i] = parent2->genes[i];
+    }
+
+    // Step 3: Fill in the remaining genes in the same order they appear in the other parent,
+    //         starting after the second crossover point and wrapping around to the beginning.
+    int current_pos1 = (point2 + 1) % num_genes;
+    int current_pos2 = (point2 + 1) % num_genes;
+    for (int i = 0; i < num_genes; i++) {
+        int gene = parent2->genes[(point2 + 1 + i) % num_genes];
+        bool already_present = false;
+        for (int j = point1; j <= point2; j++) {
+            if (child1->genes[j] == gene) {
+                already_present = true;
+                break;
+            }
+        }
+        if (!already_present) {
+            child1->genes[current_pos1] = gene;
+            current_pos1 = (current_pos1 + 1) % num_genes;
+        }
+    }
+
+    for (int i = 0; i < num_genes; i++) {
+        int gene = parent1->genes[(point2 + 1 + i) % num_genes];
+        bool already_present = false;
+        for (int j = point1; j <= point2; j++) {
+            if (child2->genes[j] == gene) {
+                already_present = true;
+                break;
+            }
+        }
+        if (!already_present) {
+            child2->genes[current_pos2] = gene;
+            current_pos2 = (current_pos2 + 1) % num_genes;
+        }
+    }
+}
+
+// PMX crossover operator: crossoverPMX
+// 1) the PMX operator randomly chooses 2 crossover points
+// 2) the PMX operator swaps the genes between the crossover points
+// 3) the PMX operator resolves conflicts for the genes outside the crossover points
+void Ae::crossoverPMX(Chromosome* parent1, Chromosome* parent2, Chromosome* child1, Chromosome* child2) {
+    int num_genes = parent1->size;
+
+    // Copy the parents to children
+    child1->copy(parent1);
+    child2->copy(parent2);
+
+    // Randomly choose two crossover points
+    int point1 = Random::random(num_genes);
+    int point2 = Random::random(num_genes);
+
+    // Ensure point1 < point2
+    if (point1 > point2) {
+        std::swap(point1, point2);
+    }
+
+    // Create mapping for genes between crossover points
+    unordered_map<int, int> mapping1, mapping2;
+
+    for (int i = point1; i <= point2; i++) {
+        child1->genes[i] = parent2->genes[i];
+        child2->genes[i] = parent1->genes[i];
+        mapping1[parent2->genes[i]] = parent1->genes[i];
+        mapping2[parent1->genes[i]] = parent2->genes[i];
+    }
+
+    // Resolve conflicts in child1
+    for (int i = 0; i < point1; i++) {
+        int gene = child1->genes[i];
+        while (mapping1.find(gene) != mapping1.end()) {
+            gene = mapping1[gene];
+        }
+        child1->genes[i] = gene;
+    }
+    for (int i = point2 + 1; i < num_genes; i++) {
+        int gene = child1->genes[i];
+        while (mapping1.find(gene) != mapping1.end()) {
+            gene = mapping1[gene];
+        }
+        child1->genes[i] = gene;
+    }
+
+    // Resolve conflicts in child2
+    for (int i = 0; i < point1; i++) {
+        int gene = child2->genes[i];
+        while (mapping2.find(gene) != mapping2.end()) {
+            gene = mapping2[gene];
+        }
+        child2->genes[i] = gene;
+    }
+    for (int i = point2 + 1; i < num_genes; i++) {
+        int gene = child2->genes[i];
+        while (mapping2.find(gene) != mapping2.end()) {
+            gene = mapping2[gene];
+        }
+        child2->genes[i] = gene;
+    }
 }
 
 void Ae::construct_distance_matrix(int dimension, vector<City>& cities) {

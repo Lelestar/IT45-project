@@ -133,7 +133,27 @@ void Chromosome::swap_2_random_genes()
 
 void Chromosome::move_1_gene()
 {
-    // This method is empty in the original code and is left as such
+    // randomly select a gene
+    int i = Random::random(size);
+
+    // randomly select a position
+    int j = Random::random(size);
+
+    // move the gene to the randomly selected position
+    int temp = genes[i];
+    if (i < j)
+    {
+        for(int k = i; k < j; k++)
+            genes[k] = genes[k + 1];
+    }
+    else
+    {
+        for(int k = i; k > j; k--)
+            genes[k] = genes[k - 1];
+    }
+    genes[j] = temp;
+
+    sort();
 }
 
 void Chromosome::invert_sequence_of_genes()
