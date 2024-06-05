@@ -79,8 +79,9 @@ int main(int argc, char **argv)
     //    2. population size (integer > 0)
     //    3. crossover rate (0 <= real <= 1)
     //    4. mutation rate (0 <= real <= 1)
-    //    5. number of cities (=size of a chromosome)
-    //    6. name of the file indicating the distances between cities
+    //    5. TSP file
+    //    6. verbose (optional)
+    //    7. max_duration_seconds (optional)
 
     cout << "Results of the Genetic algorithm for the TSP instance " << tsp_file << "\n\n";
     

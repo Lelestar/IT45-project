@@ -15,10 +15,17 @@ Ce projet traite le problème du voyageur de commerce (TSP) en utilisant différ
     ```
 2. **Exécution** : Utilisez le script `run_all.sh` (Linux) ou `run_all.bat` (Windows) pour exécuter tous les algorithmes.
     ```
-    ./run_all.sh instance_name    (Linux)
-    run_all.bat instance_name     (Windows)
+    ./run_all.sh instance_name [verbose] [time_limit]     (Linux)
+    run_all.bat instance_name [verbose] [time_limit]      (Windows)
     ```
     - `instance_name` : Nom de l'instance TSP à utiliser (sans l'extension `.tsp`).
+    - `verbose` : Mode verbeux, ecrire "verbose" pour activer.
+    - `time_limit` : Limite de temps d'exécution en secondes.
+3. **Nettoyage** : Utilisez le makefile pour nettoyer les fichiers objets, exécutables et les résultats.
+    ```
+    make clean
+    make clean_results
+    ```
 
 ## Dépendances
 - G++ pour la compilation (Linux)

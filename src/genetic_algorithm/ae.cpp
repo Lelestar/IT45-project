@@ -76,7 +76,7 @@ Chromosome* Ae::optimize()
     Chromosome *parent1;
     Chromosome *parent2;
     int best_fitness;
-    float ranking_rate = 1000.0;
+    float ranking_rate = 0;
 
     // evaluation of the individuals in the initial population
     for(int ind = 0; ind < population_size; ind++)
