@@ -9,6 +9,7 @@
 #include <vector>
 #include <cmath>
 #include <chrono>
+#include <climits>
 #include "solution.h"
 
 using namespace std;
