@@ -186,7 +186,7 @@ void build_solution(const vector<int>& next_town) {
         if (best_eval < 0 || eval < best_eval) {
             best_eval = eval;
             best_solution = solution;
-            if (verbose_logging) {
+            if (/*verbose_logging*/true) {
                 lock_guard<mutex> log_lock(log_mtx);
                 cout << "New best solution: ";
                 print_solution(solution, best_eval);
@@ -289,6 +289,10 @@ void compute_penalties(const vector<vector<double>>& d, int& izero, int& jzero, 
  */
 void explore_branch(vector<vector<double>> d, int iteration, double eval_node_parent, int izero, int jzero, bool left_branch, vector<int> next_town) {
     // Check for maximum duration
+    if (stop_execution) {
+        return;
+    }
+
     auto now = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::seconds>(now - start_time).count();
     if (duration >= max_duration) {
@@ -297,10 +301,6 @@ void explore_branch(vector<vector<double>> d, int iteration, double eval_node_pa
             lock_guard<mutex> log_lock(log_mtx);
             log_message("Maximum duration reached");
         }
-        return;
-    }
-
-    if (stop_execution) {
         return;
     }
 
@@ -340,6 +340,10 @@ void explore_branch(vector<vector<double>> d, int iteration, double eval_node_pa
  */
 void little_algorithm(vector<vector<double>> d, int iteration, double eval_node_parent, vector<int> next_town) {
     // Check for maximum duration
+    if (stop_execution) {
+        return;
+    }
+
     auto now = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::seconds>(now - start_time).count();
     if (duration >= max_duration) {
@@ -348,10 +352,6 @@ void little_algorithm(vector<vector<double>> d, int iteration, double eval_node_
             lock_guard<mutex> log_lock(log_mtx);
             log_message("Maximum duration reached");
         }
-        return;
-    }
-
-    if (stop_execution) {
         return;
     }
     
@@ -481,9 +481,11 @@ int main(int argc, char* argv[]) {
 
     cout << "Results of the Little algorithm for the TSP instance " << tsp_instance << "\n\n";
     compute_matrix(dist);
-    cout << "Distance Matrix:\n";
-    print_matrix(dist);
-    cout << "\n";
+    if (verbose_logging) {
+        cout << "Distance Matrix:\n";
+        print_matrix(dist);
+        cout << "\n";
+    }
 
     double initial_value = initial_solution();
     little_algorithm(dist, 0, 0.0, next_town);

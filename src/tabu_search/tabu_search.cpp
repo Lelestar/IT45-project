@@ -232,16 +232,19 @@ void TabuSearch::neighborhood2opt(int &best_i, int &best_j) {
 
     for(int i = 0; i < solution_size - 1; i++) {
         for(int j = i + 1; j < solution_size; j++) {
-            current->reverse_segment(i, j); // Perform 2-opt exchange
-            current->evaluate(distances);
+            if (i != 0 || j != solution_size - 1) {
+                current->reverse_segment(i, j); // Perform 2-opt exchange
+                current->evaluate(distances);
 
-            if(notTabu(i, j, current->fitness) && current->fitness < best_neighbor) {
-                best_neighbor = current->fitness;
-                best_i = i;
-                best_j = j;
+                if(notTabu(i, j, current->fitness) && current->fitness < best_neighbor) {
+                    best_neighbor = current->fitness;
+                    best_i = i;
+                    best_j = j;
+                }
+
+                current->reverse_segment(i, j); // Undo 2-opt exchange
+                current->evaluate(distances);
             }
-
-            current->reverse_segment(i, j); // Undo 2-opt exchange
         }
     }
 }

@@ -52,7 +52,7 @@ int main() {
         }
     }
 
-    // Trouver la meilleure combinaison
+    // Find the best combination
     TestResult best_result = results[0];
     for (const auto& result : results) {
         if (result.average_fitness < best_result.average_fitness) {

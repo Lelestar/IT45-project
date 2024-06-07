@@ -26,12 +26,12 @@ int main(int argc, char **argv) {
 
     // Default values
     int num_iterations = 1500;
-    int tabu_length = 50;
+    int tabu_length = 80;
     char tspFile[100];
     int verbose = 0;
     int max_duration_seconds = -1;
     strcpy(tspFile, "data/berlin52.tsp");
-    cout << "Results of the Tabu Search algorithm for the TSP instance " << tspFile << "\n\n";
+
     cout << "Synopsis: " << argv[0] << " num_iter tabu_length number_cities distance_file " << endl;
     cout << "   1. num_iter      : number of iterations, default value = " << num_iterations << endl;
     cout << "   2. tabu_length   : tabu list length, default value = " << tabu_length << endl;
@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
         cout << "Incorrect arguments" << endl;
         exit(EXIT_FAILURE);
     }
-
+    cout << "Results of the Tabu Search algorithm for the TSP instance " << tspFile << "\n\n";
     // Initialize the parameters of the TabuSearch and create the initial solution
     //   1st parameter: number of iterations (stopping criterion of the algorithm)
     //   2nd parameter: length of the Tabu list
